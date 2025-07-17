@@ -1,0 +1,14 @@
+# Bytecode and compiled stuff
+__pycache__/
+*.py[cod]
+
+# Local config and secrets
+.env
+hltb_cache.json
+
+# Virtual environments
+.venv/
+venv/
+
+#CSV
+filtered_games.csv
