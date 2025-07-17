@@ -1,11 +1,12 @@
-# Steam Game Duration Toolkit 🎮⏱️
+# Steam Game Duration Toolkit 🎮⏱️
 
-CLI tool that scans your Steam library and tells you which games …
+CLI utility that scans your Steam library, fetches play‑time estimates from [HowLongToBeat](https://howlongtobeat.com) and tells you which games fit your schedule.
 
-- you still haven’t played (optional)  
-- can be finished in **≤ _​X_​** hours, using data from [HowLongToBeat](https://howlongtobeat.com)
-
-It keeps a local JSON cache so repeat runs are instant.
+- Optional filter: **only unplayed titles**
+- Configurable main‑story limit (≤ N hours)
+- Fuzzy multi‑pass matching with a local JSON cache
+- Per‑title overrides for edge‑cases
+- Exports two CSVs: **matched** and **unmatched**
 
 ---
 
@@ -14,117 +15,128 @@ It keeps a local JSON cache so repeat runs are instant.
 ```bash
 git clone https://github.com/your‑user/steam‑toolkit.git
 cd steam‑toolkit
-cp .env.example .env         # add your Steam key + ID64
+cp .env.example .env       # add your Steam key + ID64
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
 ---
 
-## 🚀 Usage
-
-Run with defaults from `.env`:
+## 🚀 Quick start
 
 ```bash
+# defaults from .env
 python run.py
 ```
 
-Full‑library scan (no limit):
+Full library, 5 h ceiling:
 
 ```bash
 python run.py --duration 5 --limit 0
 ```
 
-Custom example:
+Live look‑ups, no cache, debug on, stricter similarity:
 
 ```bash
-python run.py --duration 4 --limit 20 --no-csv --all --debug --no-cache
+python run.py --duration 4 --debug --no-cache --sim 0.80
 ```
 
 ---
 
-### CLI flags
+### CLI flags
 
-| Flag                     | Description                                           |
-|--------------------------|-------------------------------------------------------|
-| `--duration N`           | Max main‑story hours                                  |
-| `--limit N`              | Max games to process (`0` = all)                      |
-| `--csv` / `--no-csv`     | Enable / disable CSV export                           |
-| `--unplayed`             | Only games with 0 minutes played                      |
-| `--debug` / `--no-debug` | Enable / disable HLTB debug output                    |
-| `--cache` / `--no-cache` | Force use / ignore `hltb_cache.json`                  |
-
+| Flag / env               | Description                                      |
+| ------------------------ | ------------------------------------------------ |
+| `--duration N`           | Max main‑story hours                             |
+| `--limit N`              | Max games to process (`0` = all)                 |
+| `--csv` / `--no-csv`     | Enable / disable CSV export                      |
+| `--unplayed`             | Only games with 0 minutes played                 |
+| `--all`                  | Include played games (overrides `--unplayed`)    |
+| `--debug` / `--no-debug` | Show / hide HLTB debug output                    |
+| `--cache` / `--no-cache` | Force use / ignore `hltb_cache.json`             |
+| `--sim X`                | Min similarity (0‑1). Overrides `MIN_SIMILARITY` |
 
 ---
 
-## ⚙️ Configuration (`.env`)
+## ⚙️ Configuration (`.env`)
 
 ```dotenv
-# Steam
+# Steam credentials
 STEAM_API_KEY=
 STEAM_ID64=
 
 # Filters
-MAX_DURATION=5          # hours
-LIMIT=0                 # 0 = no limit
-FILTER_UNPLAYED=true    # true / false
+MAX_DURATION=5
+LIMIT=0
+FILTER_UNPLAYED=true     # default when no --unplayed / --all
 
 # Output
-EXPORT_TO_CSV=true      # true / false
+EXPORT_TO_CSV=true
 
-# Debug
-HLTB_DEBUG=false        # true logs HLTB matches
+# Cache & debug
+USE_CACHE=true
+HLTB_DEBUG=false
 
-# Cache
-USE_CACHE=true          # false == behave like --no-cache
+# Matching
+MIN_SIMILARITY=0.75      # default threshold (0‑1)
+OVERRIDES_PATH=overrides.json
 ```
-
-> Do **not** commit your `.env`. Keep `.env.example` in the repo.
 
 ---
 
-## 📦 Output
+## 📦 Outputs
 
-Printed list + optional CSV (`filtered_games.csv`):
+| File                  | When created                 | Contents                 |
+| --------------------- | ---------------------------- | ------------------------ |
+| `filtered_games.csv`  | `--csv` and ≥ 1 match        | Titles within time limit |
+| `unmatched_games.csv` | `--csv` and ≥ 1 mismatch     | Games with no HLTB hit   |
+| `hltb_cache.json`     | always (unless `--no-cache`) | Durations cache          |
+
+Terminal example:
 
 ```
-Searching games with main story ≤ 5 h …
+Searching games with main story ≤ 3 h …
 
 VVVVVV [LIVE]
-  • Main : 2.41 h
-  • Extra: 3.45 h
-  • 100% : 4.93 h
+  • Main : 2.4 h
 ```
 
 ---
 
-## 🗄️ Cache
+## 🗂️ Overrides (`overrides.json`)
 
-- File: **`hltb_cache.json`** (root folder)  
-- Delete it anytime or run with `--no-cache` (or `USE_CACHE=false`) to refresh.  
-- First full‑run populates the cache; later runs are instant.
+```json
+{
+  "Odd Steam Title": "Exact HLTB Query",
+  "Broken Demo Name": null               // skip this entry entirely
+}
+```
+
+Overrides are checked **before** any normalisation passes.
 
 ---
 
-## 📁 Project layout
+## 🗄️ Project layout
 
 ```
 steam_toolkit/
-│  combine.py
-│  config.py
+│  combine.py        # core analysis
+│  config.py         # .env loader
 │  filters.py
-│  hltb_api.py
+│  hltb_api.py       # multipass matcher
 │  hltb_cache.py
 │  steam_api.py
-run.py
+run.py               # CLI launcher
+overrides.json       # optional
+hltb_cache.json      # generated
 .env.example
 requirements.txt
 README.md
-.gitignore
 ```
 
 ---
 
 ## 🧑‍💻 License
 
-[MIT](LICENSE) — use it, fork it, improve it.
+[MIT](LICENSE) — fork it, improve it, enjoy it.
+

@@ -1,27 +1,34 @@
 """
-Load all configuration values from .env
+Centralised .env loader.
 """
 
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
 
-def _to_bool(value: str) -> bool:
-    return value.strip().lower() in ("true", "1", "yes")
+def _bool(v: str) -> bool:
+    return v.strip().lower() in ("true", "1", "yes")
 
-# Steam
+# ── Steam credentials ──────────────────────────────────────────────────
 STEAM_API_KEY = os.getenv("STEAM_API_KEY")
 STEAM_ID64    = os.getenv("STEAM_ID64")
 
-# Filters
+# ── Library filters ────────────────────────────────────────────────────
 MAX_DURATION    = int(os.getenv("MAX_DURATION", 5))
 LIMIT           = int(os.getenv("LIMIT", 0))
-FILTER_UNPLAYED = _to_bool(os.getenv("FILTER_UNPLAYED", "true"))
+FILTER_UNPLAYED = _bool(os.getenv("FILTER_UNPLAYED", "true"))
 
-# Output
-EXPORT_TO_CSV = _to_bool(os.getenv("EXPORT_TO_CSV", "true"))
+# ── Output options ─────────────────────────────────────────────────────
+EXPORT_TO_CSV = _bool(os.getenv("EXPORT_TO_CSV", "true"))
 
-# Debug / cache
-HLTB_DEBUG = _to_bool(os.getenv("HLTB_DEBUG", "false"))
-USE_CACHE  = _to_bool(os.getenv("USE_CACHE", "true"))
+# ── Runtime toggles ────────────────────────────────────────────────────
+USE_CACHE  = _bool(os.getenv("USE_CACHE",  "true"))
+HLTB_DEBUG = _bool(os.getenv("HLTB_DEBUG", "false"))
+
+# ── Matching threshold (NEW) ───────────────────────────────────────────
+HLTB_MIN_SIMILARITY = float(os.getenv("MIN_SIMILARITY", 0.75))          # ◆
+
+# ── Overrides path  (NEW) ──────────────────────────────────────────────
+HLTB_OVERRIDES_PATH = Path(os.getenv("OVERRIDES_PATH", "overrides.json"))  # ◆

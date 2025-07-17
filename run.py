@@ -1,11 +1,10 @@
 """
-CLI launcher for the Steam Game‑Duration Toolkit.
+CLI launcher for the Steam Game‑Duration Toolkit.
 
-Flag precedence
----------------
-1. explicit CLI flag             (--debug / --no-debug / --csv / --no-csv …)
-2. value in .env                 (HLTB_DEBUG, EXPORT_TO_CSV, USE_CACHE …)
-3. hard‑coded default            (see config.py)
+Precedence order
+1. Explicit CLI flag   (e.g. --debug / --no-debug / --all)
+2. Value in .env       (HLTB_DEBUG, FILTER_UNPLAYED …)
+3. Hard‑coded default  (see config.py)
 """
 
 import argparse
@@ -20,59 +19,73 @@ from steam_toolkit.config import (
     EXPORT_TO_CSV,
     HLTB_DEBUG,
     USE_CACHE,
+    HLTB_MIN_SIMILARITY,
 )
 from steam_toolkit.combine import run as analyse
 
 
-# ── helpers ──────────────────────────────────────────────────────────────
-def _tri_state(cli_true: bool, cli_false: bool, env_default: bool) -> bool:
+# ── helpers ────────────────────────────────────────────────────────────
+def _tri(cli_true: bool, cli_false: bool, env_default: bool) -> bool:
     """CLI true wins > CLI false > env default."""
-    if cli_true:
-        return True
-    if cli_false:
-        return False
-    return env_default
+    return True if cli_true else False if cli_false else env_default
 
 
-def _int(cli_val: Optional[int], default: int) -> int:
-    return cli_val if cli_val is not None else default
+def _intval(cli_val: Optional[int], env_default: int) -> int:
+    return cli_val if cli_val is not None else env_default
 
 
-# ── CLI definition ───────────────────────────────────────────────────────
-parser = argparse.ArgumentParser(description="Steam game‑duration analyzer")
+# ── CLI definition ─────────────────────────────────────────────────────
+p = argparse.ArgumentParser("Steam game‑duration analyzer")
 
-parser.add_argument("--duration", type=int, help="Max main‑story hours (<=)")
-parser.add_argument("--limit",    type=int, help="Max games to process (0 = all)")
+p.add_argument("--duration", type=int, help="Max main‑story hours (<=)")
+p.add_argument("--limit",    type=int, help="Max games to process (0 = all)")
 
-parser.add_argument("--csv",     action="store_true", help="Enable CSV export")
-parser.add_argument("--no-csv",  action="store_true", help="Disable CSV export")
+p.add_argument("--csv",     action="store_true", help="Enable CSV export")
+p.add_argument("--no-csv",  action="store_true", help="Disable CSV export")
 
-parser.add_argument("--unplayed", action="store_true", help="Only unplayed games")
+p.add_argument("--unplayed", action="store_true", help="Only unplayed games")
+p.add_argument("--all",      action="store_true", help="Include played games")
 
-parser.add_argument("--debug",    action="store_true", help="Enable HLTB debug logs")
-parser.add_argument("--no-debug", action="store_true", help="Disable debug logs")
+p.add_argument("--debug",    action="store_true", help="Show HLTB debug logs")
+p.add_argument("--no-debug", action="store_true", help="Hide debug logs")
 
-parser.add_argument("--cache",    action="store_true", help="Use local HLTB cache")
-parser.add_argument("--no-cache", action="store_true", help="Ignore and rebuild cache")
+p.add_argument("--cache",    action="store_true", help="Use local HLTB cache")
+p.add_argument("--no-cache", action="store_true", help="Ignore / rebuild cache")
 
-cli = parser.parse_args()
+p.add_argument(
+    "--sim",
+    type=float,
+    help="Min similarity 0‑1 (overrides env HLTB_MIN_SIMILARITY)",
+)
 
-# ── effective values ────────────────────────────────────────────────────
-export_csv = _tri_state(cli.csv,  cli.no_csv,  EXPORT_TO_CSV)
-debug      = _tri_state(cli.debug, cli.no_debug, HLTB_DEBUG)
-use_cache  = _tri_state(cli.cache, cli.no_cache, USE_CACHE)
+cli = p.parse_args()
 
+
+# ── effective values ──────────────────────────────────────────────────
+export_csv = _tri(cli.csv,   cli.no_csv,  EXPORT_TO_CSV)
+debug      = _tri(cli.debug, cli.no_debug, HLTB_DEBUG)
+use_cache  = _tri(cli.cache, cli.no_cache, USE_CACHE)
+min_sim    = cli.sim if cli.sim is not None else HLTB_MIN_SIMILARITY
+
+# handle unplayed / all logic
+if cli.all:
+    only_unplayed = False
+else:
+    only_unplayed = cli.unplayed if cli.unplayed else FILTER_UNPLAYED
+
+
+# ── run analysis ───────────────────────────────────────────────────────
 analyse(
-    steam_id      = STEAM_ID64,
-    api_key       = STEAM_API_KEY,
-    max_duration  = _int(cli.duration, MAX_DURATION),
-    limit         = _int(cli.limit,    LIMIT),
-    only_unplayed = cli.unplayed if cli.unplayed else FILTER_UNPLAYED,
-    export_csv    = export_csv,
-    debug         = debug,
-    use_cache     = use_cache,
+    steam_id       = STEAM_ID64,
+    api_key        = STEAM_API_KEY,
+    max_duration   = _intval(cli.duration, MAX_DURATION),
+    limit          = _intval(cli.limit,    LIMIT),
+    only_unplayed  = only_unplayed,
+    export_csv     = export_csv,
+    debug          = debug,
+    use_cache      = use_cache,
+    min_similarity      = min_sim
 )
 
 if __name__ == "__main__":
-    # argparse already executed; nothing else needed
-    pass
+    pass  # argparse already executed
