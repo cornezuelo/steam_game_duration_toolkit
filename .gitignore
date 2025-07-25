@@ -11,4 +11,4 @@ hltb_cache.json
 venv/
 
 #CSV
-filtered_games.csv
+*.csv
